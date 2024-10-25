@@ -1,10 +1,52 @@
 import express from "express";
+import { DataTypes, Model, Sequelize } from "sequelize";
+import { body, validationResult } from "express-validator";
+
 const app = express();
 const port = 3000;
 
+const db = new Sequelize("web", "root", "12345678", {
+  host: "localhost",
+  dialect: "mysql",
+  port: 3306,
+});
+
+db.authenticate()
+  .then(() => {
+    console.log("Conexão com o banco de dados estabelecida com sucesso.");
+  })
+  .catch((err) => {
+    console.error("Erro ao conectar ao banco de dados:", err);
+  });
+
+class User extends Model {}
+
+User.init(
+  {
+      name: {
+          type: DataTypes.STRING,
+          allowNull: false,
+      },
+      email: {
+          type: DataTypes.STRING,
+          allowNull: false,
+      },
+      password: {
+          type: DataTypes.STRING,
+          allowNull: false,
+      },
+  },
+  {
+      sequelize: db,
+      modelName: "User",
+      tableName: "users",
+  }
+);
+
+
 app.set('view engine', 'ejs');
 
-app.use(express.static('public'))
+app.use("/public", express.static("./assets"));
 app.use(express.urlencoded({ extended: true }));
 
 //Lista de Tarefas 
@@ -15,7 +57,7 @@ let tasks = [
 
 // GETs
 app.get("/login", (req, res) => {
-  res.render("login", {title: "Login",});
+  res.render("login", {title: "Login", showError: false });
 });
 
 app.get("/register", (req, res) => {
@@ -44,13 +86,76 @@ app.get("/profile", (req, res) => {
 });
 
 // POSTs
-app.post("/login", (req, res) => {
-  res.send("login realizado com sucesso");
-});
+app.post(
+  "/login",
+  body("email").trim().isEmail().notEmpty(),
+  body("password").trim().notEmpty(),
+  (req, res) => {
+    const result = validationResult(req);
 
-app.post("/register", (req, res) => {
-  res.send("Registro concluido com sucesso");
-});
+    if (result.isEmpty()) {
+      return res.redirect("/home");
+    } else {
+       return res.render("login", {
+        title: "Login",
+        showError: true,
+        message: "Email ou senha inválidos, por favor verifique e tente novamente.",
+      });
+    }
+  }
+);
+
+app.post(
+  "/register",
+  body("name").trim().notEmpty().withMessage("O nome é obrigatório."),
+  body("email").trim().isEmail().withMessage("Insira um e-mail válido.").notEmpty(),
+  body("password").trim().isLength({ min: 6 }).withMessage("A senha deve ter pelo menos 6 caracteres."),
+  body("confirmPassword")
+    .trim()
+    .custom((value, { req }) => {
+      if (value !== req.body.password) {
+        throw new Error("As senhas não coincidem.");
+      }
+      return true;
+    }),
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.render("register", {
+        title: "Register",
+        errors: errors.array(),
+      });
+    }
+
+    const { name, email, password } = req.body;
+
+    try {
+      // Verificar se o e-mail já está cadastrado
+      const userExists = await User.findOne({ where: { email } });
+      if (userExists) {
+        return res.render("register", {
+          title: "Register",
+          errors: [{ msg: "Este e-mail já está registrado." }],
+        });
+      }
+
+      // Criar o novo usuário no banco de dados
+      // eslint-disable-next-line no-unused-vars
+      const newUser = await User.create({
+        name,
+        email,
+        password,
+      });
+
+      // Redirecionar para uma página de sucesso ou login após o registro
+      res.redirect("/login");
+    } catch (err) {
+      console.error("Erro ao registrar o usuário:", err);
+      res.status(500).send("Ocorreu um erro no servidor.");
+    }
+  }
+);
+
 
 app.post("/tasks/new", (req, res) => {
   res.send("Nova tarefa criada");
@@ -72,11 +177,18 @@ app.delete("/tasks/delete/:id", (req, res) => {
 });
 
 // Hellor World!
-app.get("/", (req, res) => {
+app.get("/home", async(req, res) => {
+
+  //const user = await User.findByPk(2)
+  //console.log(user.dataValues.name)
+
   res.render("home", {title: "home",});
 
 });
 
-app.listen(port, () => {
+app.listen(port, async() => {
   console.log(`Example app listening on port ${port}`);
+
+  await db.sync({ force: true });
+  console.log('All models were synchronized successfully.');
 });
