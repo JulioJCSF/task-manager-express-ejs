@@ -9,7 +9,9 @@ const db = new Sequelize("web", "root", "12345678", {
   host: "localhost",
   dialect: "mysql",
   port: 3306,
+  logging: console.log,
 });
+
 
 db.authenticate()
   .then(() => {
@@ -61,7 +63,7 @@ app.get("/login", (req, res) => {
 });
 
 app.get("/register", (req, res) => {
-  res.render("register", {title: "Register",});
+  res.render("register", { title: "Register", errors: [] });
 });
 
 app.get("/tasks", (req, res) => {
@@ -120,6 +122,7 @@ app.post(
     }),
   async (req, res) => {
     const errors = validationResult(req);
+    console.log("Erro Validacao: " + errors.array()); // Retorna no console para melhor vizualicao
     if (!errors.isEmpty()) {
       return res.render("register", {
         title: "Register",
@@ -128,11 +131,13 @@ app.post(
     }
 
     const { name, email, password } = req.body;
+    console.log("Dados de registro recebidos:", { name, email });
 
     try {
       // Verificar se o e-mail já está cadastrado
       const userExists = await User.findOne({ where: { email } });
       if (userExists) {
+        console.log("O e-mail já está registrado."); // Retorna no console para melhor vizualicao
         return res.render("register", {
           title: "Register",
           errors: [{ msg: "Este e-mail já está registrado." }],
@@ -146,11 +151,12 @@ app.post(
         email,
         password,
       });
+      console.log("Usuário criado:", newUser.toJSON()); // Retorna no console para melhor vizualicao
 
       // Redirecionar para uma página de sucesso ou login após o registro
       res.redirect("/login");
     } catch (err) {
-      console.error("Erro ao registrar o usuário:", err);
+      console.error("Erro ao registrar o usuário:", err); // Retorna no console para melhor vizualicao
       res.status(500).send("Ocorreu um erro no servidor.");
     }
   }
