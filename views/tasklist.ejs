@@ -1,0 +1,41 @@
+<%- include("partials/header") %>
+
+<div class="d-flex justify-content-end">
+    <a href="/tasks/new" class="btn btn-primary mt-3 mb-3">
+        <i class="bi bi-plus-lg me-2"></i>Nova Tarefa
+    </a>
+</div>
+
+<table class="table table-hover table-bordered">
+    <thead class="table-light">
+        <tr>
+            <th scope="col" class="text-center">Id</th>
+            <th scope="col">Nome</th>
+            <th scope="col" class="text-center">Finalizada</th>
+            <th scope="col" class="text-center">Ações</th>
+        </tr>
+    </thead>
+    <tbody>
+        <% tasks.forEach((task) => { %>
+            <tr>
+                <td class="text-center"><%= task.id %></td>
+                <td><%= task.name %></td>
+                <td class="text-center">
+                    <span class="badge rounded-pill w-50 <%= task.isFinished ? 'bg-success' : 'bg-danger' %>">
+                        <%= task.isFinished ? "Sim" : "Não" %>
+                    </span>
+                </td>
+                <td class="text-center">
+                    <a href="<%= `/tasks/${task.id}/update` %>" class="btn btn-sm btn-outline-secondary me-2">
+                        <i class="bi bi-pencil"></i> Editar
+                    </a>
+                    <a href="<%= `/tasks/${task.id}/delete` %>" class="btn btn-sm btn-outline-danger delete-link">
+                        <i class="bi bi-trash"></i> Excluir
+                    </a>
+                </td>
+            </tr>
+        <% }) %>
+    </tbody>
+</table>
+
+<%- include("partials/footer") %>
